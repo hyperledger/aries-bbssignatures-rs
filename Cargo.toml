@@ -1,12 +1,12 @@
 [package]
-authors = ["The Hyperledger Ursa Contributors"]
+authors = ["The Hyperledger Aries Contributors"]
 description = "The BBS+ signature scheme"
 documentation = "https://docs.rs/bbs"
 edition = "2018"
 license = "Apache-2.0"
 name = "bbs"
 readme = "README.md"
-repository = "https://github.com/hyperledger/ursa"
+repository = "https://github.com/hyperledger/aries-bbs-rs"
 version = "0.4.2"
 
 [badges]
