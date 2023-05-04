@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::keys::prelude::*;
 use crate::messages::*;
 use crate::pok_sig::prelude::*;

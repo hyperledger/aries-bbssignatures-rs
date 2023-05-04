@@ -66,7 +66,7 @@ macro_rules! from_impl {
         }
     };
 
-    ($name:ident, $type:ident, $comp_size:expr,$uncomp_size:expr) => {
+    ($name:ident, $type:ident, $comp_size:expr, $uncomp_size:expr) => {
         impl TryFrom<Vec<u8>> for $name {
             type Error = BBSError;
 

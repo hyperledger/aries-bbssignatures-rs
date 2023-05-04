@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::keys::prelude::*;
 use crate::pok_sig::prelude::*;
 /// The verifier of a signature or credential asks for messages to be revealed from

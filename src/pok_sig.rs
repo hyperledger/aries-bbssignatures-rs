@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::keys::PublicKey;
 use crate::messages::*;
 use crate::pok_vc::prelude::*;
@@ -132,7 +132,7 @@ impl PoKOfSignature {
             .map(|m| m.get_message())
             .collect::<Vec<SignatureMessage>>();
         if !signature.verify(sig_messages.as_slice(), &vk)? {
-            return Err(BBSErrorKind::PoKVCError {
+            return Err(BBSErrorKind::SignaturePoKError {
                 msg: "The messages and signature do not match.".to_string(),
             }
             .into());
@@ -451,7 +451,7 @@ impl PoKOfSignatureProof {
         compressed: bool,
     ) -> Result<Self, BBSError> {
         if data.len() < g1_size * 3 {
-            return Err(BBSError::from_kind(BBSErrorKind::PoKVCError {
+            return Err(BBSError::from_kind(BBSErrorKind::SignaturePoKError {
                 msg: format!("Invalid proof bytes. Expected {}", g1_size * 3),
             }));
         }

@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::keys::prelude::*;
 use crate::{
     multi_scalar_mul_const_time_g1, multi_scalar_mul_var_time_g1, rand_non_zero_fr, Commitment,

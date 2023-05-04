@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::keys::prelude::*;
 use crate::signature::prelude::*;
 /// The issuer generates keys and uses those to sign
