@@ -1,4 +1,4 @@
-use crate::errors::prelude::*;
+use crate::errors::{BBSError, BBSErrorKind};
 use crate::{
     hash_to_g2, GeneratorG1, GeneratorG2, HashElem, RandomElem, ToVariableLengthBytes,
     FR_COMPRESSED_SIZE, FR_UNCOMPRESSED_SIZE, G1_COMPRESSED_SIZE, G1_UNCOMPRESSED_SIZE,

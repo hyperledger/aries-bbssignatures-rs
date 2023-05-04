@@ -36,7 +36,7 @@ compile_error!("wasm does not support rayon. Remove the dependency on rayon.");
 extern crate arrayref;
 
 use blake2::digest::{generic_array::GenericArray, Input, VariableOutput};
-use errors::prelude::*;
+use errors::{BBSError, BBSErrorKind};
 use ff_zeroize::{Field, PrimeField};
 use keys::prelude::*;
 use pairing_plus::{
@@ -764,12 +764,13 @@ fn rand_non_zero_fr() -> Fr {
 /// Convenience importer
 pub mod prelude {
     pub use super::{
-        errors::prelude::*, issuer::Issuer, keys::prelude::*, messages::*, pok_sig::prelude::*,
-        pok_vc::prelude::*, prover::Prover, signature::prelude::*, verifier::Verifier,
-        BlindSignatureContext, Commitment, CommitmentBuilder, GeneratorG1, GeneratorG2, HashElem,
-        ProofChallenge, ProofNonce, ProofRequest, RandomElem, SignatureBlinding, SignatureMessage,
-        SignatureProof, ToVariableLengthBytes, FR_COMPRESSED_SIZE, G1_COMPRESSED_SIZE,
-        G1_UNCOMPRESSED_SIZE, G2_COMPRESSED_SIZE, G2_UNCOMPRESSED_SIZE,
+        errors::BBSError, errors::BBSErrorKind, issuer::Issuer, keys::prelude::*, messages::*,
+        pok_sig::prelude::*, pok_vc::prelude::*, prover::Prover, signature::prelude::*,
+        verifier::Verifier, BlindSignatureContext, Commitment, CommitmentBuilder, GeneratorG1,
+        GeneratorG2, HashElem, ProofChallenge, ProofNonce, ProofRequest, RandomElem,
+        SignatureBlinding, SignatureMessage, SignatureProof, ToVariableLengthBytes,
+        FR_COMPRESSED_SIZE, G1_COMPRESSED_SIZE, G1_UNCOMPRESSED_SIZE, G2_COMPRESSED_SIZE,
+        G2_UNCOMPRESSED_SIZE,
     };
 }
 

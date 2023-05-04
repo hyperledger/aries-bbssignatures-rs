@@ -10,7 +10,6 @@
 //! During response generation `ProverCommitted` is consumed to create `Proof` object containing the commitments and responses.
 //! `Proof` can then be verified by the verifier.
 
-#[cfg(feature = "wasm")]
 use crate::errors::{BBSError, BBSErrorKind};
 use crate::{
     hash_to_fr, multi_scalar_mul_const_time_g1, rand_non_zero_fr, Commitment, GeneratorG1,
@@ -18,7 +17,6 @@ use crate::{
     G1_COMPRESSED_SIZE, G1_UNCOMPRESSED_SIZE,
 };
 
-use failure::{Backtrace, Context, Fail};
 use ff_zeroize::Field;
 use pairing_plus::{
     bls12_381::{Fr, G1},
@@ -30,117 +28,14 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::convert::TryFrom;
-use std::fmt::{self, Formatter};
+use std::fmt::Formatter;
 use std::io::{Cursor, Read};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 /// Convenience importing module
 pub mod prelude {
-    pub use super::{PoKVCError, PoKVCErrorKind, ProofG1, ProverCommittedG1, ProverCommittingG1};
-}
-
-/// The errors that can happen when creating a proof of knowledge of a signature
-#[derive(Clone, Eq, PartialEq, Debug, Fail)]
-pub enum PoKVCErrorKind {
-    /// When the number of exponents and bases is out of sync
-    #[fail(
-        display = "Same no of bases and exponents required. {} bases and {} exponents",
-        bases, exponents
-    )]
-    UnequalNoOfBasesExponents {
-        /// The number of found bases
-        bases: usize,
-        /// The number of found exponents
-        exponents: usize,
-    },
-
-    /// A generic error
-    #[fail(display = "Error with message {:?}", msg)]
-    GeneralError {
-        /// The error message
-        msg: String,
-    },
-}
-
-/// Wrapper to hold the kind of error and a backtrace
-#[derive(Debug)]
-pub struct PoKVCError {
-    inner: Context<PoKVCErrorKind>,
-}
-
-impl PoKVCError {
-    /// Get the inner error kind
-    pub fn kind(&self) -> PoKVCErrorKind {
-        self.inner.get_context().clone()
-    }
-
-    /// Wrap an error kind
-    pub fn from_kind(kind: PoKVCErrorKind) -> Self {
-        Self {
-            inner: Context::new("").context(kind),
-        }
-    }
-}
-
-impl From<PoKVCErrorKind> for PoKVCError {
-    fn from(kind: PoKVCErrorKind) -> Self {
-        Self {
-            inner: Context::new(kind),
-        }
-    }
-}
-
-impl From<std::io::Error> for PoKVCError {
-    fn from(err: std::io::Error) -> Self {
-        PoKVCError::from_kind(PoKVCErrorKind::GeneralError {
-            msg: format!("{:?}", err),
-        })
-    }
-}
-
-#[cfg(feature = "wasm")]
-impl From<PoKVCError> for JsValue {
-    fn from(error: PoKVCError) -> Self {
-        JsValue::from_str(&format!("{}", error))
-    }
-}
-
-#[cfg(feature = "wasm")]
-impl From<JsValue> for PoKVCError {
-    fn from(js: JsValue) -> Self {
-        if js.is_string() {
-            PoKVCError::from(PoKVCErrorKind::GeneralError {
-                msg: js.as_string().unwrap(),
-            })
-        } else {
-            PoKVCError::from(PoKVCErrorKind::GeneralError {
-                msg: "".to_string(),
-            })
-        }
-    }
-}
-
-impl From<Context<PoKVCErrorKind>> for PoKVCError {
-    fn from(inner: Context<PoKVCErrorKind>) -> Self {
-        Self { inner }
-    }
-}
-
-impl Fail for PoKVCError {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl fmt::Display for PoKVCError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, f)
-    }
+    pub use super::{ProofG1, ProverCommittedG1, ProverCommittingG1};
 }
 
 /// Proof of knowledge of messages in a vector commitment.
@@ -213,9 +108,9 @@ impl ProverCommittingG1 {
     }
 
     /// Return the generator and blinding factor at `idx`
-    pub fn get_index(&self, idx: usize) -> Result<(GeneratorG1, SignatureMessage), PoKVCError> {
+    pub fn get_index(&self, idx: usize) -> Result<(GeneratorG1, SignatureMessage), BBSError> {
         if idx >= self.bases.len() {
-            return Err(PoKVCErrorKind::GeneralError {
+            return Err(BBSErrorKind::GeneralError {
                 msg: format!("index {} greater than size {}", idx, self.bases.len()),
             }
             .into());
@@ -256,14 +151,8 @@ impl ProverCommittedG1 {
         self,
         challenge: &ProofChallenge,
         secrets: &[SignatureMessage],
-    ) -> Result<ProofG1, PoKVCError> {
-        if secrets.len() != self.bases.len() {
-            return Err(PoKVCErrorKind::UnequalNoOfBasesExponents {
-                bases: self.bases.len(),
-                exponents: secrets.len(),
-            }
-            .into());
-        }
+    ) -> Result<ProofG1, BBSError> {
+        check_matching_bases(secrets.len(), self.bases.len())?;
         let mut responses = Vec::with_capacity(self.bases.len());
         for i in 0..self.bases.len() {
             let mut c = challenge.0;
@@ -289,17 +178,11 @@ impl ProofG1 {
         bases: &[GeneratorG1],
         commitment: &Commitment,
         challenge: &ProofChallenge,
-    ) -> Result<GeneratorG1, PoKVCError> {
+    ) -> Result<GeneratorG1, BBSError> {
         // bases[0]^responses[0] * bases[0]^responses[0] * ... bases[i]^responses[i] * commitment^challenge == random_commitment
         // =>
         // bases[0]^responses[0] * bases[0]^responses[0] * ... bases[i]^responses[i] * commitment^challenge * random_commitment^-1 == 1
-        if bases.len() != self.responses.len() {
-            return Err(PoKVCErrorKind::UnequalNoOfBasesExponents {
-                bases: bases.len(),
-                exponents: self.responses.len(),
-            }
-            .into());
-        }
+        check_matching_bases(bases.len(), self.responses.len())?;
         let mut points: Vec<G1> = bases.iter().map(|g| g.0).collect();
         let mut scalars = self.responses.clone();
         points.push(commitment.0);
@@ -315,7 +198,7 @@ impl ProofG1 {
         bases: &[GeneratorG1],
         commitment: &Commitment,
         challenge: &ProofChallenge,
-    ) -> Result<bool, PoKVCError> {
+    ) -> Result<bool, BBSError> {
         let mut pr = self.get_challenge_contribution(bases, commitment, challenge)?;
         pr.0.sub_assign(&self.commitment);
         Ok(pr.0.is_zero())
@@ -329,14 +212,8 @@ impl ProofG1 {
         commitment: &Commitment,
         challenge: &ProofChallenge,
         nonce: &[u8],
-    ) -> Result<bool, PoKVCError> {
-        if bases.len() != self.responses.len() {
-            return Err(PoKVCErrorKind::UnequalNoOfBasesExponents {
-                bases: bases.len(),
-                exponents: self.responses.len(),
-            }
-            .into());
-        }
+    ) -> Result<bool, BBSError> {
+        check_matching_bases(bases.len(), self.responses.len())?;
         let mut points: Vec<G1> = bases.iter().map(|b| b.0).collect();
         let bases = points.clone();
         let mut scalars = self.responses.clone();
@@ -375,9 +252,9 @@ impl ProofG1 {
         data: &[u8],
         g_size: usize,
         compressed: bool,
-    ) -> Result<Self, PoKVCError> {
+    ) -> Result<Self, BBSError> {
         if data.len() < g_size + 4 {
-            return Err(PoKVCErrorKind::GeneralError {
+            return Err(BBSErrorKind::SignaturePoKError {
                 msg: "Invalid length".to_string(),
             }
             .into());
@@ -391,7 +268,7 @@ impl ProofG1 {
         let length = u32::from_be_bytes(length_bytes) as usize;
 
         if data.len() < g_size + 4 + length * FR_COMPRESSED_SIZE {
-            return Err(PoKVCErrorKind::GeneralError {
+            return Err(BBSErrorKind::SignaturePoKError {
                 msg: "Invalid length".to_string(),
             }
             .into());
@@ -421,13 +298,13 @@ impl Default for ProofG1 {
 
 impl ToVariableLengthBytes for ProofG1 {
     type Output = ProofG1;
-    type Error = PoKVCError;
+    type Error = BBSError;
 
     fn to_bytes_compressed_form(&self) -> Vec<u8> {
         self.to_bytes(true)
     }
 
-    fn from_bytes_compressed_form<I: AsRef<[u8]>>(data: I) -> Result<Self, PoKVCError> {
+    fn from_bytes_compressed_form<I: AsRef<[u8]>>(data: I) -> Result<Self, BBSError> {
         Self::from_bytes(data.as_ref(), G1_COMPRESSED_SIZE, true)
     }
 
@@ -435,13 +312,27 @@ impl ToVariableLengthBytes for ProofG1 {
         self.to_bytes(false)
     }
 
-    fn from_bytes_uncompressed_form<I: AsRef<[u8]>>(data: I) -> Result<Self, PoKVCError> {
+    fn from_bytes_uncompressed_form<I: AsRef<[u8]>>(data: I) -> Result<Self, BBSError> {
         Self::from_bytes(data.as_ref(), G1_UNCOMPRESSED_SIZE, false)
     }
 }
 
-try_from_impl!(ProofG1, PoKVCError);
+try_from_impl!(ProofG1, BBSError);
 serdes_impl!(ProofG1);
+
+fn check_matching_bases(a: usize, b: usize) -> Result<(), BBSError> {
+    if a != b {
+        Err(BBSErrorKind::SignaturePoKError {
+            msg: format!(
+                "Same no of bases and exponents required. Provided {a} bases \
+                and {b} exponents",
+            ),
+        }
+        .into())
+    } else {
+        Ok(())
+    }
+}
 
 #[cfg(feature = "wasm")]
 wasm_slice_impl!(ProofG1);
