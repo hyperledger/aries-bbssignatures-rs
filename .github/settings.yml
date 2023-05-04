@@ -3,6 +3,6 @@
 #
 
 repository:
-  name: aries-bbs-rs
+  name: aries-bbssignatures-rs
   default_branch: main
   archived: false
