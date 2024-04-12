@@ -12,13 +12,13 @@ and selective disclosure zero-knowledge proofs. To start, all that is needed is 
 
 ```toml
 [dependencies]
-bbs = "0.4"
+aries_bbssignatures = "0.1"
 ```
 
 Add in the main section of code to get all the traits, structs, and functions needed.
 
 ```rust
-use bbs::prelude::*;
+use aries_bbssignatures::prelude::*;
 ```
 
 ## Keygen

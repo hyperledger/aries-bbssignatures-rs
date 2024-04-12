@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate bbs;
+extern crate aries_bbssignatures as bbs;
 
 use bbs::prelude::*;
 use std::collections::BTreeMap;
